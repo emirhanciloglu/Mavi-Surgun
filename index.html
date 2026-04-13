@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mavi Sürgün | Arşiv V8.5</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --accent: #1e90ff; 
+            --paper-bg: #b8ab8e; 
+            --ink-dark: #1a1a1a; 
+            --ink-fade: #444444; 
+        }
+        
+        * { box-sizing: border-box !important; cursor: none !important; }
+
+        /* KRİTİK: Arka plan artık siyah değil, harita renginde açılır */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--paper-bg); overflow: hidden; font-family: 'Montserrat', sans-serif; perspective: 2000px; }
+
+        #cursor-main {
+            position: fixed; top: 0; left: 0; width: 40px; height: 40px; border: 2px solid var(--accent);
+            background: rgba(30, 144, 255, 0.15); border-radius: 50%; pointer-events: none; z-index: 1000000;
+            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
+        }
+        #cursor-main::after { content: ''; width: 5px; height: 5px; background: white; border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
+        body.cursor-active #cursor-main { width: 60px; height: 60px; background: rgba(30, 144, 255, 0.35); border-width: 3px; transition: 0.3s; }
+
+        #timer-container {
+            position: fixed; top: 30px; left: 30px; width: 65px; height: 65px;
+            z-index: 120000; display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.7); border-radius: 50%; backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.1); transition: opacity 0.5s;
+        }
+        #timer-container.active { display: flex; }
+        #timer-svg { position: absolute; transform: rotate(-90deg); width: 100%; height: 100%; }
+        #timer-circle {
+            fill: none; stroke: var(--accent); stroke-width: 3;
+            stroke-dasharray: 188.4; stroke-dashoffset: 188.4;
+            transition: stroke-dashoffset 1s linear;
+        }
+        #timer-text { color: white; font-size: 16px; font-weight: 700; position: relative; z-index: 2; opacity: 0.8; }
+
+        #merhaba-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 1) 100%); z-index: 160000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 1.5s ease; }
+        #merhaba-text { color: white; font-size: 110px; font-weight: 800; letter-spacing: 40px; text-transform: uppercase; filter: drop-shadow(0 0 30px var(--accent)); }
+
+        #start-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; transition: 1.5s; }
+        .opened #start-container { opacity: 0; visibility: hidden; pointer-events: none; }
+        #start-btn { background: transparent; border: none; padding: 20px; font-size: 42px; text-transform: uppercase; letter-spacing: 22px; font-weight: 800; background: linear-gradient(to right, #fff 20%, var(--accent) 40%, var(--accent) 60%, #fff 80%); background-size: 200% auto; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: wave-shimmer 4s linear infinite, start-pulse 2s ease-in-out infinite; }
+        @keyframes start-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes wave-shimmer { to { background-position: 200% center; } }
+
+        /* KRİTİK: Harita yüklenene kadar bej kalması için arka planı düzelttim */
+        #viewer { width: 100vw; height: 100vh; background: var(--paper-bg) !important; position: absolute; top: 0; left: 0; z-index: 10; }
+        #vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 100%); z-index: 15; pointer-events: none; }
+
+        #info-panel { 
+            position: fixed; right: -500px; top: 0; width: 440px; height: 100%; 
+            background: var(--paper-bg); z-index: 100000; 
+            transition: right 0.8s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.8s ease;
+            display: flex; flex-direction: column; padding: 0;
+            color: var(--ink-dark); 
+            box-shadow: -20px 0 50px rgba(0,0,0,0);
+            overflow: hidden; 
+        }
+        #info-panel.active { 
+            right: 0; 
+            box-shadow: -20px 0 60px rgba(30, 144, 255, 0.25); 
+        }
+
+        #info-img-container { width: 100%; height: 250px; background: #111; overflow: hidden; border-bottom: 3px solid rgba(0,0,0,0.1); position: relative; }
+        #info-img { 
+            width: 100%; height: 100%; 
+            object-fit: cover;
+            opacity: 0; transition: opacity 0.8s ease-in-out; 
+        }
+
+        #info-body { padding: 30px 35px; flex-grow: 1; display: flex; flex-direction: column; opacity: 0; transition: opacity 0.8s; }
+        h2 { color: #0056b3; font-size: 19px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px; margin: 0; font-weight: 700; letter-spacing: 0.5px; }
+        #info-content { margin: 15px 0; font-size: 13.8px; line-height: 1.55; font-weight: 500; text-align: justify; }
+
+        .quote { display: block; border-left: 3px solid var(--accent); padding: 5px 15px; margin: 15px 0; font-style: italic; color: var(--ink-fade); font-size: 13px; width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-break: normal; }
+
+        .nav-controls { display: flex; justify-content: center; gap: 20px; padding: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
+        .nav-btn { width: 50px; height: 50px; border-radius: 50%; color: var(--ink-dark); border: 2px solid rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; background: transparent; transition: 0.3s; }
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .utility-bar { position: fixed; bottom: 40px; left: 40px; display: flex; gap: 15px; z-index: 110000; opacity: 1; }
+        .utility-btn { width: 55px; height: 55px; border-radius: 50%; background: rgba(0,0,0,0.85); border: 2.5px solid rgba(255,255,255,0.3); color: white; display: grid; place-items: center; transition: 0.3s; backdrop-filter: blur(12px); }
+        .utility-btn.active { color: var(--accent); border-color: var(--accent); }
+
+        .hotspot { width: 22px; height: 22px; background: var(--accent); border: 2px solid #fff; border-radius: 50%; animation: pulse 2s infinite; z-index: 100; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(30, 144, 255, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(30, 144, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(30, 144, 255, 0); } }
+        .route-leg { fill: none; stroke: var(--accent); stroke-width: 0.0035; opacity: 0.8; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 3.5s ease-in-out; }
+    </style>
+</head>
+<body onmousemove="updateCursor(event)">
+
+    <audio id="bg-music" loop><source src="arka-plan.mp3" type="audio/mpeg"></audio>
+    <audio id="sea-sound"><source src="deniz.mp3" type="audio/mpeg"></audio>
+
+    <div id="cursor-main"></div>
+    <div id="merhaba-overlay"><div id="merhaba-text">MERHABA</div></div>
+
+    <div id="timer-container">
+        <svg id="timer-svg" viewBox="0 0 65 65">
+            <circle cx="32.5" cy="32.5" r="30" id="timer-circle"></circle>
+        </svg>
+        <span id="timer-text">30</span>
+    </div>
+
+    <div id="start-container">
+        <button id="start-btn" onclick="initExperience()" onmouseenter="cursorIn(true)" onmouseleave="cursorIn(false)">MAVİ SÜRGÜN</button>
+        <p style="color:rgba(255,255,255,0.4); max-width:550px; text-align:center; line-height:1.6; font-size:15px; font-weight:300; letter-spacing:1px; margin-top:10px;">Cevat Şakir Kabaağaçlı'nın 1925 yılında İstanbul'dan Bodrum'a uzanan sürgün hikayesi. Bu interaktif harita ile zorlu bir yolculuğun nasıl mavi bir serüvene dönüşüp 'Halikarnas Balıkçısı'nı yarattığına tanıklık edeceksiniz.</p>
+    </div>
+
+    <div id="vignette"></div>
+    <div id="viewer"></div>
+
+    <div id="info-panel">
+        <div id="info-img-container"><img id="info-img" src="" alt="Durak Görseli"></div>
+        <div id="info-body">
+            <h2 id="info-title"></h2>
+            <div id="info-content"></div>
+        </div>
+        <div class="nav-controls">
+            <button class="nav-btn" onclick="prevStep()"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+            <button class="nav-btn" onclick="closePanel()"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></button>
+            <button class="nav-btn" onclick="nextStep()"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+        </div>
+    </div>
+
+    <div class="utility-bar">
+        <button class="utility-btn" onclick="toggleFullscreen()"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6"/></svg></button>
+        <button class="utility-btn" id="mute-btn" onclick="toggleMusic()"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
+        <button class="utility-btn active" id="auto-btn" onclick="toggleAuto()"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+    </div>
+
+    <script>
+        // TÜM UZANTILARI .webp OLARAK GÜNCELLEDİM
+        const stops = [
+            { x: 0.3794, y: 0.1652, title: "ÜSKÜDAR", img: "uskudar.webp", content: "Cevat Şakir Kabaağaçlı, Resimli Hafta dergisinde yayımlanan 'Hapishanede İdama Mahkûm Olanlar Bile Bile Asılmaya Nasıl Giderler' başlıklı makalesi gerekçe gösterilerek 13 Nisan 1925'te Üsküdar'daki evinden sivil polislerce gözaltına alınır. Yazarın Ankara İstiklal Mahkemesi'nde yargılanmak üzere polis nezaretinde çıkacağı zorunlu ve belirsiz yolculuk bu noktada başlar.<br><br><span class='quote'>\"Karakola geleceksiniz\" dediler.<br>\"Karakola niçin gidiyoruz?\" diye sordum.<br>\"Biz bilmiyoruz, size karakolda söylerler\" dediler.<br>\"Merak ediyorum, nedir? Önemli bir şey mi var?\"<br>\"Bilmiyoruz. Karakola varınca Komiser Bey size söyler.\"<br>Bir yanımda iki polis, öteki yanımda iki polis Üsküdar Karakolu'nun yolunu tuttuk. Dört beş adım attım, dönüp kapıya baktım. İçimde bir acı! O kapıya son kere bakmakta olduğum acı acı içime doğdu. Zaten kapıdan çıkış o çıkış oldu, oraya artık bir daha dönmedim.</span>" },
+            { x: 0.3676, y: 0.1700, title: "HAYDARPAŞA GARI", img: "haydarpasa.webp", content: "Cevat Şakir, İstiklal Mahkemesi'nde yargılanmak üzere Haydarpaşa Garı'ndan Ankara trenine bindirilir. Bu istasyon, yazarın sürgün yolculuğu için İstanbul'dan fiilen koptuğu noktadır.<br><br><span class='quote'>Daha trenin kalkmasına epeyce bir zaman vardı. Niçin Ankara İstiklal Mahkemesine gidiyordum? İşte bu soru hâlâ zihnimi burkan bir işkence olarak devam ediyordu. Tren gelecekti, beni bindirecekler, Ankara’ya götürecekler ve hangi suçu işlemişsem orada yalnız olarak hesabını verecektim. Belli olan bir şey varsa işte buydu ama hangi suçu işlemiştim?</span>" },
+            { x: 0.5970, y: 0.2482, title: "ANKARA - CEBECİ HAPİSHANESİ", img: "cebeci.webp", content: "İstiklal Mahkemesi'nde idam talebiyle yargılanan yazarın Ankara'daki durağı Cebeci Hapishanesi'dir. Darağacına gitmeyi beklerken çıkan Bodrum'a sürgün kararı, karanlık hikayenin seyrinin değiştiği yerdir.<br><br><span class='quote'>Acaba başıma gelecekler bela mıydı, yoksa ömrümün bela suratlı en mutlu yılları mıydı? Hani, ömrümün en mutlu otuz yılına açılan kara kapı mıydı? — Neyse, yazı basıldı. Yazı basıldığından birkaç ay önce hâsıldı, bir şey olmazdı. Çünkü o, Şeyh Said İsyanı'ndan önce basılmış olacaktı. — Neyse! Yazı basılmasına basıldı daha önce anlattığım gibi, o basılış dolayısıyla Üsküdar’da tutuklanarak İstiklal Mahkemesi'nde yargılanmak üzere Ankara'nın Cebeci Hapishanesi'ne tıkıldık.</span>" },
+            { x: 0.5785, y: 0.2609, title: "ANKARA GARI", img: "ankara-gar.webp", content: "Cebeci Hapishanesi'ndeki tutukluluk sürecinin ardından Bodrum'a sürülmesine karar verilen yazar, Ankara Garı'na getirilir. Buradan iki jandarma eşliğinde trene bindirilerek, haftalar sürecek zorlu sürgün yolculuğuna doğru yola çıkarılır.<br><br><span class='quote'>Şu Cebeci Hapishanesi'nden çıkınca, oradan kurtuldum diye derin bir soluk aldım. Neyse şu Hazreti Yusuf Makamı'ndan selametle çıkıyorduk. Yanımda iki jandarma vardı. Yüzlerine bakınca meymenetli insanlar olduklarını anladım. Kelepçe takıp takmamak konusunda aralarında kısa bir tartışma oldu. Nihayet yüzüme baktılar. Birisi, \"Kaçmazsın ağam, değil mi?\" dedi. Güldüm. \"Hayır, kaçmam!\" dedim, kelepçe takmadılar böylece. Tin tin Ankara Garı'na gittik.</span>" },
+            { x: 0.4539, y: 0.3493, title: "AFYON", img: "afyon.webp", content: "Ankara'dan jandarma nezaretinde yola çıkarılan Cevat Şakir'in tren yolculuğundaki ara durağı Afyon'dur. İç Anadolu'nun bozkırından Ege'ye doğru coğrafyanın değişmeye başladığı bu istasyon, sürgün rotasının önemli noktalarındandır.<br><br><span class='quote'>Artık sular kararıyor, karanlık basıyordu. Afyon’a geceleyin girdik. Jandarmalar Afyon'a çıkacağımızı söylediler. Şaştım.<br>\"İzmir’e gitmiyor muyuz?\" diye sordum.<br>\"Evet, İzmir’e gideceğiz.\"<br>\"Burada niye iniyoruz öyleyse?\"<br>\"Bize Ankara’dan yalnız Afyon’a kadar yol masrafı navlun verdiler. Buradan İzmir’e gitmek için harçlık ve navlunu Afyon’dan alacağımızı söylediler. Yarın gidip alacağız\" dediler.</span>" },
+            { x: 0.2732, y: 0.3556, title: "MANİSA", img: "manisa.webp", content: "Ankara'dan başlayan zorlu tren yolculuğu, Manisa sınırlarına girilmesiyle yerini Ege'nin ılıman iklimine bırakır. Yazar, bu istikamet üzerinden sürgünün bir sonraki ana durağı olan İzmir'e ulaşır.<br><br><span class='quote'>Akşama yakın Manisa’ya vardık. Her nedense tren orada epeyce kaldı. İstasyonda kiraz satıyorlardı. Her taraf kiraz yığınlarıyla kıpkırmızıydı. Ben ve jandarmalar kiraz satın alıp yedik. Afyon’dan beri kompartıman dolup dolup boşalıyordu. Galiba İzmir'e giden yalnız ben ve jandarmalardık.</span>" },
+            { x: 0.2332, y: 0.3748, title: "İZMİR", img: "izmir.webp", content: "Cevat Şakir'in sürgün yolunda Arşipel'i ilk gördüğü yer olan İzmir durağı, jandarma nezaretinde Bodrum'a doğru yapılacak zorlu yolculuğun yeni başlangıç noktasıdır.<br><br><span class='quote'>Tren Karşıyaka’dan geçerken asıl İzmir’in ışıkları pırıl pırıl yanıyordu. Gökte de tek tük yıldızlar vardı. Katar şurada durdu, ıslık çaldı, beş on adım ilerledi, yine durup bir şeyler bekledi. Nihayet Basmane Garı'na vardı. Şilteyi, çantayı sırtladım. Dışarıda bir karoça tuttuk, arabacıya: \"Hapishane!\" dendi.</span>" },
+            { x: 0.2830, y: 0.4120, title: "AYDIN", img: "aydin.webp", content: "Aydın, sürgün rotasının Ege içlerine doğru kıvrıldığı geçiş noktası olarak dikkat çekmektedir. Cevat Şakir'in Bodrum'a varabilmek için aşması gereken zorlu coğrafya bu bölgeden itibaren kendini hissettirir.<br><br><span class='quote'>Aydın'a vardık. Aydın hep yanmış kül olmuştu. İşgal sıralarında Rauf Yekta bana gelmişti de, Aydın'ın işgali dolayısıyla bestelediği bir türküyü okumuştu. «Aydın, Aydın! Yanıp yıkılaydın!» diye başlayan o türkü sahiden de dokunaklıydı. Aydın'a göz gezdirdim. Orasını Yunanlılar hemen hemen bir şeyi ayakta bırakmamak üzere yakıp yıkmışlardı. Gardan çıkınca kendimizi âdeta bir yangın yerinde bulduk. İşte Aydın buydu.</span>" },
+            { x: 0.2969, y: 0.4365, title: "ÇİNE", img: "cine.webp", content: "Çine, sürgün güzergâhında doğanın tüm vahşiliğiyle yola eşlik ettiği kritik bir geçiş noktasıdır. Cevat Şakir'in Çine Çayı boyunca ilerleyerek sarp dağları aşmaya başladığı bu etap, yolculuğun fiziksel anlamda en zahmetli kısımlarından birini oluşturur.<br><br><span class='quote'> Beni getirenler, Çine jandarmalarına teslim edip gittiler. İçimden, «Bakalım burada nelere çatacağız?» diye düşündüm. Jandarma dairesi yarı düzlük, yarı bahçe denebilecek bir yerde küçük barakalardan ibaretti. Beni teslim alan jandarma çavuşu, evrakımı alarak, bu barakalardan birinin kapısına daldı. Herhalde orası jandarma subayının odasıydı. Aradan çok geçmeden, o yapının içinden diri ve şen bir ses, «Hoş geldiniz Cevat Bey!» dedi.</span>" },
+            { x: 0.3143, y: 0.4686, title: "MUĞLA", img: "mugla.webp", content: "Yazarın zorlu dağ yollarını aşarak ulaştığı bu durak, coğrafyanın ve iklimin Ege’nin 'cennet' doğasına evrildiği son eşik niteliğindedir.<br><br><span class='quote'>Akşama doğru bir jandarma geldi, beni başefendinin görmek istediğini söyledi ve önüme düştü. Yukarıya çıktık, orada sevimli yüzlü bir genç, beni karşıladı. Muğla Jandarma Komutanıymış. Hal hatır sorulup sigaralar ve kahveler içilmeye başlanınca, delikanlı bana bir derdini anlattı.</span>" },
+            { x: 0.2859, y: 0.4616, title: "MİLAS", img: "milas.webp", content: "Milas, Bodrum’un eşiği ve sürgün yolculuğunun kara üzerindeki son büyük durağıdır. Bu nokta, yazarın sürgün yolunu tamamlayıp 'mavi' ile buluşmasına ramak kaldığı son menzildir.<br><br><span class='quote'>Sağa sola zigzaklaya zigzaklaya ovaya indik. Milas’ta ışıklar yanmıştı. Doğruca jandarma dairesine gittik. Orada evrakım ve ben Milas Jandarma Komutanı olan genç bir subaya teslim edildik. Dar ve uzun bir odaya kapatıldım. Ne var ki, orası koğuş değil, dayalı döşeli bir odaydı, şaka değil, bir tarafında bir minderi bile vardı.</span>" },
+            { x: 0.2665, y: 0.4812, title: "BODRUM", img: "bodrum.webp", content: "Bodrum, sürgün yolculuğunun nihai varış noktası ve 'Halikarnas Balıkçısı' efsanesinin doğum yeridir. Bir ceza olarak başlayan bu sürgün, yazarın denizle bütünleşip ömrünü adayacağı ebedi bir sevdaya dönüşür.<br><br><span class='quote'>Eh nihayet yokuşun tepesine gelmiştik. Yolcular, «Neredeyse Bodrum görünecek!» dediler. Yüreğim çarpıyor. Kaç aydır buraya gelmeye uğraşıyordum yahu!.. Tepedeki bir dönemeci dönünce, «şırrrak», «guuurr» diye Arşipel'in koyu çividisi ölçülmez açıklıklara kadar yayılıverdi.</span>" }
+        ];
+
+        let currentStep = -1, autoNextTimeout, routeLegs = [], isAuto = true;
+        let timerInterval, timeLeft = 30;
+
+        const cursor = document.getElementById('cursor-main');
+        function updateCursor(e) { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }
+        function cursorIn(state) { document.body.classList.toggle('cursor-active', state); }
+
+        // HARİTAYI .webp YAPTIM VE SİYAH EKRAN ENGELLEYİCİ EKLEDİM
+        var viewer = OpenSeadragon({ 
+            id: "viewer", 
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/", 
+            tileSources: { type: 'image', url: 'harita.webp', buildPyramid: false }, 
+            placeholderFillStyle: "#b8ab8e", // Harita inene kadar bej gösterir
+            homeFillsViewer: true, 
+            visibilityRatio: 1.0, 
+            animationTime: 3.5, 
+            springStiffness: 0.6, 
+            showNavigationControl: false 
+        });
+
+        viewer.addHandler('open', function() {
+            stops.forEach((stop, i) => {
+                var elt = document.createElement("div"); elt.className = "hotspot";
+                elt.onmouseenter = () => cursorIn(true); elt.onmouseleave = () => cursorIn(false);
+                viewer.addOverlay({ element: elt, location: new OpenSeadragon.Point(stop.x, stop.y), placement: OpenSeadragon.Placement.CENTER });
+                new OpenSeadragon.MouseTracker({ element: elt, clickHandler: function() { showStep(i); } });
+            });
+            setupIndividualRouteLegs();
+        });
+
+        function setupIndividualRouteLegs() {
+            const svgOverlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svgOverlay.setAttribute("viewBox", "0 0 1 1"); svgOverlay.style.width = "100%"; svgOverlay.style.height = "100%";
+            for (let i = 0; i < stops.length - 1; i++) {
+                const leg = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                leg.setAttribute("d", `M ${stops[i].x} ${stops[i].y} L ${stops[i+1].x} ${stops[i+1].y}`);
+                leg.setAttribute("class", "route-leg"); leg.setAttribute("pathLength", "100");
+                svgOverlay.appendChild(leg); routeLegs.push(leg);
+            }
+            viewer.addOverlay({ element: svgOverlay, location: new OpenSeadragon.Point(0, 0), width: 1, height: 1 });
+        }
+
+        function initExperience() { document.body.classList.add('opened'); const bgMusic = document.getElementById('bg-music'); bgMusic.volume = 0.2; bgMusic.play().catch(e => {}); setTimeout(() => { showStep(0); }, 1500); }
+
+        document.addEventListener("visibilitychange", () => { if (!document.hidden && isAuto && currentStep !== -1) { showStep(currentStep); } });
+
+        function startTimer() {
+            clearInterval(timerInterval); timeLeft = 30;
+            const circle = document.getElementById('timer-circle'); const text = document.getElementById('timer-text'); const container = document.getElementById('timer-container');
+            if(!isAuto) { container.classList.remove('active'); return; }
+            container.classList.add('active');
+            timerInterval = setInterval(() => {
+                timeLeft--; text.innerText = timeLeft;
+                const offset = 188.4 - (188.4 * (30 - timeLeft) / 30); circle.style.strokeDashoffset = offset;
+                if (timeLeft <= 0) { clearInterval(timerInterval); nextStep(); }
+            }, 1000);
+        }
+
+        function showStep(index) {
+            clearTimeout(autoNextTimeout); clearInterval(timerInterval); if(index < 0 || index >= stops.length) return;
+            const sea = document.getElementById('sea-sound'); sea.volume = 0.05; sea.currentTime = 0; sea.play().catch(e=>{});
+            currentStep = index; const stop = stops[index];
+            const img = document.getElementById('info-img'); const body = document.getElementById('info-body');
+            img.style.opacity = 0; body.style.opacity = 0;
+            setTimeout(() => { 
+                img.src = stop.img; 
+                document.getElementById('info-title').innerText = stop.title; 
+                document.getElementById('info-content').innerHTML = stop.content; 
+                img.onload = () => { img.style.opacity = 1; body.style.opacity = 1; }; // Resim inince göster
+            }, 400);
+            document.getElementById('info-panel').classList.add('active');
+            viewer.viewport.panTo(new OpenSeadragon.Point(stop.x, stop.y)); viewer.viewport.zoomTo(2.3);
+            routeLegs.forEach((leg, i) => { leg.style.strokeDashoffset = (i < index) ? "0" : "100"; });
+            if(isAuto) startTimer(); else document.getElementById('timer-container').classList.remove('active');
+        }
+
+        function nextStep() { if (currentStep < stops.length - 1) showStep(currentStep + 1); else showFinal(); }
+        function showFinal() { const overlay = document.getElementById('merhaba-overlay'); document.getElementById('timer-container').classList.remove('active'); overlay.style.display = 'flex'; setTimeout(() => { overlay.style.opacity = '1'; }, 50); setTimeout(() => { overlay.style.opacity = '0'; setTimeout(() => { overlay.style.display = 'none'; closePanel(); if(isAuto) setTimeout(() => { showStep(0); }, 2000); }, 1000); }, 3000); }
+        function closePanel() { currentStep = -1; clearInterval(timerInterval); document.getElementById('timer-container').classList.remove('active'); document.getElementById('info-panel').classList.remove('active'); viewer.viewport.zoomTo(1.6); viewer.viewport.panTo(new OpenSeadragon.Point(0.45, 0.28)); }
+        function toggleMusic() { const music = document.getElementById('bg-music'); music.muted = !music.muted; document.getElementById('mute-btn').classList.toggle('active', music.muted); }
+        function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        function toggleAuto() { isAuto = !isAuto; document.getElementById('auto-btn').classList.toggle('active', isAuto); if(!isAuto) { clearInterval(timerInterval); document.getElementById('timer-container').classList.remove('active'); } else { showStep(currentStep); } }
+        function prevStep() { if (currentStep > 0) showStep(currentStep - 1); }
+        document.addEventListener('keydown', (e) => { if (!document.body.classList.contains('opened')) return; if (e.key === "ArrowRight") nextStep(); if (e.key === "ArrowLeft") prevStep(); if (e.key === "Escape") closePanel(); });
+
+        // KRİTİK: PRELOADING (SAYFA AÇILIRKEN TÜM RESİMLERİ ARKADA İNDİRİR)
+        window.addEventListener('load', () => {
+            const preloads = ["harita.webp", ...stops.map(s => s.img)];
+            preloads.forEach(src => {
+                const img = new Image();
+                img.src = src;
+            });
+        });
+    </script>
+</body>
+</html>
