@@ -9,24 +9,23 @@
 
     <style>
         :root { 
-            --accent: #1e90ff; 
-            --paper-bg: #b8ab8e; 
-            --ink-dark: #1a1a1a; 
-            --ink-fade: #444444; 
+            --accent: #4dd0e1; 
+            --paper-bg: #0f4c81; 
+            --ink-dark: #f4f6f8; 
+            --ink-fade: #b0c4de; 
         }
         
         * { box-sizing: border-box !important; cursor: none !important; }
 
-        /* KRİTİK: Arka plan artık siyah değil, harita renginde açılır */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--paper-bg); overflow: hidden; font-family: 'Montserrat', sans-serif; perspective: 2000px; }
 
         #cursor-main {
             position: fixed; top: 0; left: 0; width: 40px; height: 40px; border: 2px solid var(--accent);
-            background: rgba(30, 144, 255, 0.15); border-radius: 50%; pointer-events: none; z-index: 1000000;
+            background: rgba(77, 208, 225, 0.15); border-radius: 50%; pointer-events: none; z-index: 1000000;
             transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
         }
         #cursor-main::after { content: ''; width: 5px; height: 5px; background: white; border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
-        body.cursor-active #cursor-main { width: 60px; height: 60px; background: rgba(30, 144, 255, 0.35); border-width: 3px; transition: 0.3s; }
+        body.cursor-active #cursor-main { width: 60px; height: 60px; background: rgba(77, 208, 225, 0.35); border-width: 3px; transition: 0.3s; }
 
         #timer-container {
             position: fixed; top: 30px; left: 30px; width: 65px; height: 65px;
@@ -44,7 +43,7 @@
         #timer-text { color: white; font-size: 16px; font-weight: 700; position: relative; z-index: 2; opacity: 0.8; }
 
         #merhaba-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 1) 100%); z-index: 160000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 1.5s ease; }
-        #merhaba-text { color: white; font-size: 110px; font-weight: 800; letter-spacing: 40px; text-transform: uppercase; filter: drop-shadow(0 0 30px var(--accent)); }
+        #merhaba-text { color: white; font-size: 110px; font-weight: 800; letter-spacing: 40px; text-transform: uppercase; filter: drop-shadow(0 0 30px var(--accent)); text-align: center; }
 
         #start-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; transition: 1.5s; }
         .opened #start-container { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -52,7 +51,6 @@
         @keyframes start-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         @keyframes wave-shimmer { to { background-position: 200% center; } }
 
-        /* KRİTİK: Harita yüklenene kadar bej kalması için arka planı düzelttim */
         #viewer { width: 100vw; height: 100vh; background: var(--paper-bg) !important; position: absolute; top: 0; left: 0; z-index: 10; }
         #vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 45%, rgba(0,0,0,0.85) 100%); z-index: 15; pointer-events: none; }
 
@@ -67,32 +65,71 @@
         }
         #info-panel.active { 
             right: 0; 
-            box-shadow: -20px 0 60px rgba(30, 144, 255, 0.25); 
+            box-shadow: -20px 0 60px rgba(15, 76, 129, 0.5); 
         }
 
-        #info-img-container { width: 100%; height: 250px; background: #111; overflow: hidden; border-bottom: 3px solid rgba(0,0,0,0.1); position: relative; }
+        #info-img-container { 
+            width: 100%; height: 250px; background: #111; overflow: hidden; 
+            border-bottom: 3px solid rgba(255,255,255,0.1); position: relative; 
+            flex-shrink: 0; 
+        }
         #info-img { 
             width: 100%; height: 100%; 
             object-fit: cover;
             opacity: 0; transition: opacity 0.8s ease-in-out; 
         }
 
-        #info-body { padding: 30px 35px; flex-grow: 1; display: flex; flex-direction: column; opacity: 0; transition: opacity 0.8s; }
-        h2 { color: #0056b3; font-size: 19px; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px; margin: 0; font-weight: 700; letter-spacing: 0.5px; }
+        #info-body { 
+            padding: 30px 35px; flex-grow: 1; display: flex; flex-direction: column; 
+            opacity: 0; transition: opacity 0.8s; 
+            overflow-y: auto; 
+        }
+        h2 { color: #ffffff; font-size: 19px; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 10px; margin: 0; font-weight: 700; letter-spacing: 0.5px; }
         #info-content { margin: 15px 0; font-size: 13.8px; line-height: 1.55; font-weight: 500; text-align: justify; }
 
         .quote { display: block; border-left: 3px solid var(--accent); padding: 5px 15px; margin: 15px 0; font-style: italic; color: var(--ink-fade); font-size: 13px; width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-break: normal; }
 
-        .nav-controls { display: flex; justify-content: center; gap: 20px; padding: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
-        .nav-btn { width: 50px; height: 50px; border-radius: 50%; color: var(--ink-dark); border: 2px solid rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; background: transparent; transition: 0.3s; }
+        .nav-controls { display: flex; justify-content: center; gap: 20px; padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+        .nav-btn { width: 50px; height: 50px; border-radius: 50%; color: var(--ink-dark); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; background: transparent; transition: 0.3s; }
         .nav-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
         .utility-bar { position: fixed; bottom: 40px; left: 40px; display: flex; gap: 15px; z-index: 110000; opacity: 1; }
         .utility-btn { width: 55px; height: 55px; border-radius: 50%; background: rgba(0,0,0,0.85); border: 2.5px solid rgba(255,255,255,0.3); color: white; display: grid; place-items: center; transition: 0.3s; backdrop-filter: blur(12px); }
         .utility-btn.active { color: var(--accent); border-color: var(--accent); }
 
         .hotspot { width: 22px; height: 22px; background: var(--accent); border: 2px solid #fff; border-radius: 50%; animation: pulse 2s infinite; z-index: 100; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(30, 144, 255, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(30, 144, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(30, 144, 255, 0); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(77, 208, 225, 0.6); } 70% { box-shadow: 0 0 0 15px rgba(77, 208, 225, 0); } 100% { box-shadow: 0 0 0 0 rgba(77, 208, 225, 0); } }
         .route-leg { fill: none; stroke: var(--accent); stroke-width: 0.0035; opacity: 0.8; stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 3.5s ease-in-out; }
+        
+        #info-body::-webkit-scrollbar { width: 6px; }
+        #info-body::-webkit-scrollbar-track { background: transparent; }
+        #info-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        #info-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        /* =====================================================================
+           MOBİL UYUM (RESPONSIVE) KODLARI - SADECE KÜÇÜK EKRANLARDA ÇALIŞIR
+        ====================================================================== */
+        @media (max-width: 768px) {
+            * { cursor: auto !important; } /* Dokunmatik ekranlarda özel fareyi iptal et */
+            #cursor-main { display: none !important; } 
+            
+            #info-panel { width: 100%; right: -100%; } /* Panel mobilde tam ekran olur */
+            #info-panel.active { right: 0; }
+            
+            #info-img-container { height: 220px; } /* Görsel mobilde biraz daha az yer kaplar */
+            #info-body { padding: 20px 25px; } /* İç boşluklar daraltıldı */
+            
+            #start-btn { font-size: 26px; letter-spacing: 12px; padding: 15px; } /* Açılış butonu küçüldü */
+            #start-container p { padding: 0 20px; font-size: 13px; } /* Açılış metni uyarlandı */
+            
+            #merhaba-text { font-size: 45px; letter-spacing: 15px; } /* Bitiş yazısı ekrana sığdırıldı */
+            
+            .utility-bar { bottom: 20px; left: 20px; gap: 10px; } /* Sol alt butonlar hizalandı */
+            .utility-btn { width: 48px; height: 48px; }
+            .utility-btn svg { width: 24px; height: 24px; }
+            
+            #timer-container { top: 20px; left: 20px; width: 50px; height: 50px; } /* Sayaç küçültüldü */
+            #timer-text { font-size: 14px; }
+        }
     </style>
 </head>
 <body onmousemove="updateCursor(event)">
@@ -138,7 +175,6 @@
     </div>
 
     <script>
-        // TÜM UZANTILARI .webp OLARAK GÜNCELLEDİM
         const stops = [
             { x: 0.3794, y: 0.1652, title: "ÜSKÜDAR", img: "uskudar.webp", content: "Cevat Şakir Kabaağaçlı, Resimli Hafta dergisinde yayımlanan 'Hapishanede İdama Mahkûm Olanlar Bile Bile Asılmaya Nasıl Giderler' başlıklı makalesi gerekçe gösterilerek 13 Nisan 1925'te Üsküdar'daki evinden sivil polislerce gözaltına alınır. Yazarın Ankara İstiklal Mahkemesi'nde yargılanmak üzere polis nezaretinde çıkacağı zorunlu ve belirsiz yolculuk bu noktada başlar.<br><br><span class='quote'>\"Karakola geleceksiniz\" dediler.<br>\"Karakola niçin gidiyoruz?\" diye sordum.<br>\"Biz bilmiyoruz, size karakolda söylerler\" dediler.<br>\"Merak ediyorum, nedir? Önemli bir şey mi var?\"<br>\"Bilmiyoruz. Karakola varınca Komiser Bey size söyler.\"<br>Bir yanımda iki polis, öteki yanımda iki polis Üsküdar Karakolu'nun yolunu tuttuk. Dört beş adım attım, dönüp kapıya baktım. İçimde bir acı! O kapıya son kere bakmakta olduğum acı acı içime doğdu. Zaten kapıdan çıkış o çıkış oldu, oraya artık bir daha dönmedim.</span>" },
             { x: 0.3676, y: 0.1700, title: "HAYDARPAŞA GARI", img: "haydarpasa.webp", content: "Cevat Şakir, İstiklal Mahkemesi'nde yargılanmak üzere Haydarpaşa Garı'ndan Ankara trenine bindirilir. Bu istasyon, yazarın sürgün yolculuğu için İstanbul'dan fiilen koptuğu noktadır.<br><br><span class='quote'>Daha trenin kalkmasına epeyce bir zaman vardı. Niçin Ankara İstiklal Mahkemesine gidiyordum? İşte bu soru hâlâ zihnimi burkan bir işkence olarak devam ediyordu. Tren gelecekti, beni bindirecekler, Ankara’ya götürecekler ve hangi suçu işlemişsem orada yalnız olarak hesabını verecektim. Belli olan bir şey varsa işte buydu ama hangi suçu işlemiştim?</span>" },
@@ -161,12 +197,11 @@
         function updateCursor(e) { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; }
         function cursorIn(state) { document.body.classList.toggle('cursor-active', state); }
 
-        // HARİTAYI .webp YAPTIM VE SİYAH EKRAN ENGELLEYİCİ EKLEDİM
         var viewer = OpenSeadragon({ 
             id: "viewer", 
             prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/", 
             tileSources: { type: 'image', url: 'harita.webp', buildPyramid: false }, 
-            placeholderFillStyle: "#b8ab8e", // Harita inene kadar bej gösterir
+            placeholderFillStyle: "#0f4c81", 
             homeFillsViewer: true, 
             visibilityRatio: 1.0, 
             animationTime: 3.5, 
@@ -222,7 +257,7 @@
                 img.src = stop.img; 
                 document.getElementById('info-title').innerText = stop.title; 
                 document.getElementById('info-content').innerHTML = stop.content; 
-                img.onload = () => { img.style.opacity = 1; body.style.opacity = 1; }; // Resim inince göster
+                img.onload = () => { img.style.opacity = 1; body.style.opacity = 1; }; 
             }, 400);
             document.getElementById('info-panel').classList.add('active');
             viewer.viewport.panTo(new OpenSeadragon.Point(stop.x, stop.y)); viewer.viewport.zoomTo(2.3);
@@ -239,7 +274,6 @@
         function prevStep() { if (currentStep > 0) showStep(currentStep - 1); }
         document.addEventListener('keydown', (e) => { if (!document.body.classList.contains('opened')) return; if (e.key === "ArrowRight") nextStep(); if (e.key === "ArrowLeft") prevStep(); if (e.key === "Escape") closePanel(); });
 
-        // KRİTİK: PRELOADING (SAYFA AÇILIRKEN TÜM RESİMLERİ ARKADA İNDİRİR)
         window.addEventListener('load', () => {
             const preloads = ["harita.webp", ...stops.map(s => s.img)];
             preloads.forEach(src => {
