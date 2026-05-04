@@ -112,23 +112,29 @@
             * { cursor: auto !important; } /* Dokunmatik ekranlarda özel fareyi iptal et */
             #cursor-main { display: none !important; } 
             
-            #info-panel { width: 100%; right: -100%; } /* Panel mobilde tam ekran olur */
+            /* DÜZELTME 1: Panel açıldığında sayaç ve ayar butonlarını altta bırakması için z-index 150000 yapıldı */
+            /* DÜZELTME 2: Telefon tarayıcılarındaki adres çubuğunun alt butonları yutmaması için height: 100dvh eklendi */
+            #info-panel { width: 100%; right: -100%; z-index: 150000; height: 100vh; height: 100dvh; } 
             #info-panel.active { right: 0; }
             
-            #info-img-container { height: 220px; } /* Görsel mobilde biraz daha az yer kaplar */
-            #info-body { padding: 20px 25px; } /* İç boşluklar daraltıldı */
+            #info-img-container { height: 200px; } /* Görsel mobilde biraz daha küçültüldü ki yazıya yer kalsın */
+            #info-body { padding: 15px 20px; } 
             
-            #start-btn { font-size: 26px; letter-spacing: 12px; padding: 15px; } /* Açılış butonu küçüldü */
-            #start-container p { padding: 0 20px; font-size: 13px; } /* Açılış metni uyarlandı */
+            /* DÜZELTME 3: Taşan yazılar için sabit piksel yerine ekran genişliğine duyarlı (vw) ölçüler kullanıldı */
+            #start-btn { font-size: 8vw; letter-spacing: 2vw; padding: 15px; width: 100%; } 
+            #start-container p { padding: 0 20px; font-size: 13px; } 
             
-            #merhaba-text { font-size: 45px; letter-spacing: 15px; } /* Bitiş yazısı ekrana sığdırıldı */
+            #merhaba-text { font-size: 13vw; letter-spacing: 3vw; } 
             
-            .utility-bar { bottom: 20px; left: 20px; gap: 10px; } /* Sol alt butonlar hizalandı */
-            .utility-btn { width: 48px; height: 48px; }
-            .utility-btn svg { width: 24px; height: 24px; }
+            .utility-bar { bottom: 20px; left: 20px; gap: 10px; z-index: 90000; } /* Panelin altında kalması sağlandı */
+            .utility-btn { width: 45px; height: 45px; }
+            .utility-btn svg { width: 22px; height: 22px; }
             
-            #timer-container { top: 20px; left: 20px; width: 50px; height: 50px; } /* Sayaç küçültüldü */
+            #timer-container { top: 20px; left: 20px; width: 50px; height: 50px; z-index: 90000; } /* Panelin altında kalması sağlandı */
             #timer-text { font-size: 14px; }
+
+            /* Alt butonların mobilde rahat tıklanması ve güvenli alanda kalması için boşluk */
+            .nav-controls { padding: 15px 20px 30px 20px; }
         }
     </style>
 </head>
